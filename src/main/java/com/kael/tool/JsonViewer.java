@@ -21,11 +21,11 @@ import com.alibaba.fastjson.JSONObject;
 
 public class JsonViewer extends JFrame{  
       
-    Box box;  
-    JTree jTree1;  
-    JTabbedPane jTabbedPane;
+    private Box box;  
+    private JTree jTree1;  
+    private JTabbedPane jTabbedPane;
     
-    JTextArea text;
+    private JTextArea text;
       
     public JsonViewer()  
     {  

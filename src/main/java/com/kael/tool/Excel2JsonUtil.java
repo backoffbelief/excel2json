@@ -4,9 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -22,14 +20,18 @@ import com.alibaba.fastjson.JSONObject;
 
 public class Excel2JsonUtil {
 
-	private static int make0(final File srcFile, final String dstDirPath,boolean isXls){
+	private static int make0(final File srcFile, final String dstDirPath,boolean isXls) throws Exception{
 		Workbook workbook = null;
 		try {
 			workbook  =  isXls ? new HSSFWorkbook(new FileInputStream(srcFile)): new XSSFWorkbook(srcFile);
 			readWorkBook(workbook, dstDirPath);
 			return 1;
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch(Exception e){
+			if(e instanceof ReadExcelException){
+				throw ((ReadExcelException) e).append(srcFile.getName());
+			}else{
+				throw e;
+			}
 		}finally{
 			if(workbook != null){
 				try {
@@ -39,21 +41,20 @@ public class Excel2JsonUtil {
 				}
 			}
 		}
-		return 0;
 	}
 
-	public static int make(final File srcFile, final String dstDirPath){
+	public static int make(final File srcFile, final String dstDirPath)throws Exception{
 		if(srcFile.isFile()){
-			return make0(srcFile, dstDirPath,"xls".equalsIgnoreCase(getPrefix(srcFile.getAbsolutePath())));
+			return make0(srcFile, dstDirPath == null ? srcFile.getAbsolutePath(): dstDirPath,"xls".equalsIgnoreCase(getPrefix(srcFile.getAbsolutePath())));
 		}else{
 			int successCount = 0 ;
 			for (File f : srcFile.listFiles()) {
 				if(f.isDirectory()) continue;
 				String prefix =getPrefix(f.getAbsolutePath());
 				if("xls".equalsIgnoreCase(prefix)){
-					successCount+=make0(f, dstDirPath,true);
+					successCount+=make0(f, dstDirPath == null ? srcFile.getAbsolutePath(): dstDirPath,true);
 				}else if("xlsx".equalsIgnoreCase(prefix)){
-					successCount+=make0(f, dstDirPath,false);
+					successCount+=make0(f, dstDirPath == null ? srcFile.getAbsolutePath(): dstDirPath,false);
 				}
 			}
 			return successCount;
@@ -72,7 +73,7 @@ public class Excel2JsonUtil {
 //			workBooks.put(sheet.getSheetName(), readSheet(sheet));
 			FileWriter fileWriter = null;
 			try {
-				fileWriter= new FileWriter(dstDirPath+"/"+sheet.getSheetName()+"-"+toDateStr()+".json");
+				fileWriter= new FileWriter(dstDirPath+"/"+sheet.getSheetName()+".json");
 				JSON.writeJSONStringTo(readSheet(sheet), fileWriter);
 //				list.add(dstDirPath+"/"+sheet.getSheetName()+"-"+toDateStr()+".json");
 			} finally{
@@ -99,7 +100,14 @@ public class Excel2JsonUtil {
 					String stringCellValue = row.getCell(i).getStringCellValue();
 					if("#".equals(stringCellValue))break;
 					titles.add(stringCellValue);
-					dataTypes.add(nextRow.getCell(i+row.getFirstCellNum()).getStringCellValue());
+					if(nextRow == null){
+						return array;
+					}
+					Cell cell = nextRow.getCell(i);
+					if(cell == null){
+						throw new ReadExcelException("列["+stringCellValue+"],下边没有类型!");
+					}
+					dataTypes.add(cell.getStringCellValue());
 				}
 				rowIndex++;
 				continue;
@@ -107,13 +115,13 @@ public class Excel2JsonUtil {
 			JSONObject rowData = new JSONObject();
 //			HashMap<String, Object> rowDatas = new HashMap<String, Object>(row.getLastCellNum()+1);
 			for (int i = 0; i < titles.size(); i++) {
-				Cell cell = row.getCell(i+row.getFirstCellNum());
+				Cell cell = row.getCell(i);
 				if(cell == null){
-					continue;
+					throw new ReadExcelException("["+titles.get(i)+"]列第["+(rowIndex + 1)  +"]行没数据");
 				}
 				switch (cell.getCellType()) {
 				case Cell.CELL_TYPE_BLANK:
-					break;
+					throw new ReadExcelException("["+titles.get(i)+"]列第["+(rowIndex + 1) +"]行没数据");
 				case Cell.CELL_TYPE_BOOLEAN:
 //					rowDatas.put(titles[i], cell.getBooleanCellValue());
 					rowData.put(titles.get(i), cell.getBooleanCellValue());
@@ -138,14 +146,6 @@ public class Excel2JsonUtil {
 			}
 			array.add(rowData);
 		}
-		System.out.println(JSON.toJSONString(array));
 		return array;
-	}
-
-	static String toDateStr(long time){
-		return new SimpleDateFormat("yyyy-MM-ddHHmmss").format(new Date(time));
-	}
-	static String toDateStr(){
-		return toDateStr(System.currentTimeMillis());
 	}
 }

@@ -23,6 +23,14 @@ import javax.swing.filechooser.FileFilter;
 public class Excel2JsonApp extends JFrame {
 
 	private final class ClickActionLister implements ActionListener {
+		private Excel2JsonApp app;
+		
+		public ClickActionLister(Excel2JsonApp app) {
+			super();
+			this.app = app;
+		}
+
+
 		public void actionPerformed(ActionEvent e) {
 			if(e.getSource() == jButton || e.getSource() == jButton0){
 				JFileChooser jfc = new JFileChooser(jTextField.getText());
@@ -76,7 +84,14 @@ public class Excel2JsonApp extends JFrame {
 			} else if(e.getSource() == jButton1){
 				File file = new File(jTextField.getText());
 				if(file.isDirectory()){
-					sendMess(Excel2JsonUtil.make(file, jTextField0.getText()));
+					try {
+						Excel2JsonUtil.make(file, jTextField0.getText());
+						JOptionPane.showMessageDialog(app, "","生成json成功!",JOptionPane.DEFAULT_OPTION);
+					} catch (Exception e1) {
+						if(e1 instanceof ReadExcelException){
+							JOptionPane.showMessageDialog(app, ((ReadExcelException)e1).getMessage(),"生成json失败!",JOptionPane.ERROR_MESSAGE);
+						}
+					}
 				}
 			}
 			}
@@ -143,7 +158,7 @@ public class Excel2JsonApp extends JFrame {
 		
 //		clipboard = this.getToolkit().getSystemClipboard();
 
-		ClickActionLister click = new ClickActionLister();
+		ClickActionLister click = new ClickActionLister(this);
 		jButton.addActionListener(click);
 		
 		jButton0.addActionListener(click);
@@ -155,26 +170,13 @@ public class Excel2JsonApp extends JFrame {
 		add(jPanel, BorderLayout.EAST);
 		
 		add(jButton1,BorderLayout.SOUTH);
-		
-		
-//		
 	}
 	
 	private void checkAndSet(String text) {
 		if(null == text || "".equals(text.trim())){
 			return ;
 		}
-		File f = new File(text);
 	}
 
 
-	private void sendMess(int make) {
-		if(make > 0){
-//			clipboard.setContents(new StringSelection(jlabel2.getText()), null);
-			JOptionPane.showMessageDialog(this, "","生成json成功!",JOptionPane.DEFAULT_OPTION);
-		}else{
-			JOptionPane.showMessageDialog(this, "","生成json失败!",JOptionPane.ERROR_MESSAGE);
-		}
-		
-	}
 }
